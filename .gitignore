@@ -1,0 +1,22 @@
+# Arquivos de ambiente (contêm senhas do banco)
+.env
+
+# Ambiente virtual Python
+.venv/
+
+# Cache do Python
+__pycache__/
+*.pyc
+.mypy_cache/
+
+# Arquivos de diagnóstico (temporários)
+diagnostico.txt
+check_db.py
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
