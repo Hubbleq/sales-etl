@@ -28,9 +28,21 @@ except Exception:
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
     DB_URL = os.environ.get("DATABASE_URL", "")
 
+# Normalize driver → psycopg2 for maximum cloud compatibility
+if "postgresql+psycopg://" in DB_URL:
+    DB_URL = DB_URL.replace("postgresql+psycopg://", "postgresql+psycopg2://")
+elif DB_URL.startswith("postgresql://"):
+    DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 @st.cache_resource(show_spinner=False)
 def get_engine():
-    return create_engine(DB_URL, pool_size=3, max_overflow=2, pool_pre_ping=True)
+    return create_engine(
+        DB_URL,
+        pool_size=3,
+        max_overflow=2,
+        pool_pre_ping=True,
+        connect_args={"sslmode": "require"},
+    )
 
 # ─── Design System (CSS) ─────────────────────────────────────────────────────
 st.markdown("""
