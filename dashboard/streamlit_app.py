@@ -1,13 +1,14 @@
 # ══════════════════════════════════════════════════════════════════════════════
-# Sales Analytics Pro — Dashboard v8.0
-# Design Philosophy: Minimalist · Data Storytelling · Premium Aesthetics
+# Sales Analytics Pro — Dashboard v8.0 (Cloud-Ready)
+# Connects directly to Supabase — no FastAPI backend needed.
 # ══════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
-import requests
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import date, datetime
+from sqlalchemy import create_engine, text
+import os
 
 # ─── Page Config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -17,7 +18,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-API = "http://localhost:8001"
+# ─── Database Connection ─────────────────────────────────────────────────────
+# Priority: st.secrets (Streamlit Cloud) > .env file (local)
+try:
+    DB_URL = st.secrets["DATABASE_URL"]
+except Exception:
+    from dotenv import load_dotenv
+    from pathlib import Path
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    DB_URL = os.environ.get("DATABASE_URL", "")
+
+@st.cache_resource(show_spinner=False)
+def get_engine():
+    return create_engine(DB_URL, pool_size=3, max_overflow=2, pool_pre_ping=True)
 
 # ─── Design System (CSS) ─────────────────────────────────────────────────────
 st.markdown("""
@@ -262,17 +275,42 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-@st.cache_data(ttl=60, show_spinner=False)
-def api(endpoint, params):
-    try:
-        r = requests.get(f"{API}{endpoint}", params=params, timeout=8)
-        if r.status_code != 200:
-            return []
-        d = r.json()
-        return d if isinstance(d, list) else [d] if isinstance(d, dict) else []
-    except Exception:
-        return []
+# ─── Data Queries ─────────────────────────────────────────────────────────────
+@st.cache_data(ttl=120, show_spinner=False)
+def query_daily(start, end):
+    q = text("SELECT data_venda AS date, SUM(valor_total)::FLOAT AS revenue, SUM(quantidade) AS units, SUM(desconto)::FLOAT AS discount FROM fato_vendas WHERE data_venda BETWEEN :s AND :e GROUP BY 1 ORDER BY 1")
+    with get_engine().connect() as c:
+        return pd.DataFrame(c.execute(q, {"s": start, "e": end}).mappings().all())
+
+@st.cache_data(ttl=120, show_spinner=False)
+def query_monthly(start, end):
+    q = text("SELECT TO_CHAR(data_venda, 'YYYY-MM') AS month, SUM(valor_total)::FLOAT AS revenue, SUM(quantidade) AS units, SUM(desconto)::FLOAT AS discount, COUNT(*) AS rows FROM fato_vendas WHERE data_venda BETWEEN :s AND :e GROUP BY 1 ORDER BY 1")
+    with get_engine().connect() as c:
+        return pd.DataFrame(c.execute(q, {"s": start, "e": end}).mappings().all())
+
+@st.cache_data(ttl=120, show_spinner=False)
+def query_top_products(start, end, limit=500):
+    q = text("SELECT p.sku, p.nome_produto AS product_name, p.categoria AS category, SUM(f.quantidade) AS units, SUM(f.valor_total)::FLOAT AS revenue FROM fato_vendas f JOIN dim_produto p USING (produto_id) WHERE f.data_venda BETWEEN :s AND :e GROUP BY p.sku, p.nome_produto, p.categoria ORDER BY revenue DESC LIMIT :lim")
+    with get_engine().connect() as c:
+        return pd.DataFrame(c.execute(q, {"s": start, "e": end, "lim": limit}).mappings().all())
+
+@st.cache_data(ttl=120, show_spinner=False)
+def query_stores(start, end):
+    q = text("SELECT l.nome_loja AS store_name, SUM(f.valor_total)::FLOAT AS revenue, SUM(f.quantidade) AS units, COUNT(*) AS transaction_count FROM fato_vendas f JOIN dim_loja l USING (loja_id) WHERE f.data_venda BETWEEN :s AND :e GROUP BY l.nome_loja ORDER BY revenue DESC")
+    with get_engine().connect() as c:
+        return pd.DataFrame(c.execute(q, {"s": start, "e": end}).mappings().all())
+
+@st.cache_data(ttl=120, show_spinner=False)
+def query_categories(start, end):
+    q = text("SELECT p.categoria AS category, SUM(f.valor_total)::FLOAT AS revenue, SUM(f.quantidade) AS units FROM fato_vendas f JOIN dim_produto p USING (produto_id) WHERE f.data_venda BETWEEN :s AND :e GROUP BY 1 ORDER BY revenue DESC")
+    with get_engine().connect() as c:
+        return pd.DataFrame(c.execute(q, {"s": start, "e": end}).mappings().all())
+
+@st.cache_data(ttl=120, show_spinner=False)
+def query_stores_monthly(start, end):
+    q = text("SELECT TO_CHAR(f.data_venda, 'YYYY-MM') AS month, l.nome_loja AS store_name, SUM(f.valor_total)::FLOAT AS revenue FROM fato_vendas f JOIN dim_loja l USING (loja_id) WHERE f.data_venda BETWEEN :s AND :e GROUP BY 1, 2 ORDER BY 1, 2")
+    with get_engine().connect() as c:
+        return pd.DataFrame(c.execute(q, {"s": start, "e": end}).mappings().all())
 
 def brl(v):
     """R$ 1.234,56"""
@@ -349,13 +387,12 @@ with st.sidebar:
         s_date = st.date_input("Início", date(2025, 1, 1))
         e_date = st.date_input("Fim", date(2025, 12, 31))
 
-    params = {"start": str(s_date), "end": str(e_date)}
     st.markdown("---")
 
     # Load reference data for multi-selects
     with st.spinner(""):
-        ref_cats = pd.DataFrame(api("/products/categories", params))
-        ref_stores = pd.DataFrame(api("/stores/performance", params))
+        ref_cats = query_categories(str(s_date), str(e_date))
+        ref_stores = query_stores(str(s_date), str(e_date))
 
     sel_cats = st.multiselect(
         "CATEGORIAS",
@@ -372,20 +409,21 @@ with st.sidebar:
         st.rerun()
 
 # ─── Data Loading ─────────────────────────────────────────────────────────────
-df_d = pd.DataFrame(api("/sales/daily", params))
-df_m = pd.DataFrame(api("/sales/monthly", params))
-df_p = pd.DataFrame(api("/products/top", {**params, "limit": 500}))
-df_s = pd.DataFrame(api("/stores/performance", params))
-df_c = pd.DataFrame(api("/products/categories", params))
-df_sm = pd.DataFrame(api("/stores/monthly", params))
+sd, ed = str(s_date), str(e_date)
+df_d = query_daily(sd, ed)
+df_m = query_monthly(sd, ed)
+df_p = query_top_products(sd, ed)
+df_s = query_stores(sd, ed)
+df_c = query_categories(sd, ed)
+df_sm = query_stores_monthly(sd, ed)
 
 if df_d.empty:
     st.markdown("""
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:70vh;">
         <div style="font-size:2.5rem;margin-bottom:16px;">⏳</div>
-        <div style="color:rgba(255,255,255,0.4);font-size:0.9rem;font-weight:500;">Conectando à API…</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:0.9rem;font-weight:500;">Sem dados no período…</div>
         <div style="color:rgba(255,255,255,0.2);font-size:0.75rem;margin-top:6px;">
-            Verifique se o backend está ativo em localhost:8001</div>
+            Verifique a conexão com o banco de dados ou ajuste o período.</div>
     </div>
     """, unsafe_allow_html=True)
     st.stop()

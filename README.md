@@ -139,6 +139,28 @@ streamlit run dashboard/streamlit_app.py --server.port 8501
 
 ---
 
+## ☁️ Deploy Online (Streamlit Community Cloud)
+
+O dashboard pode ser publicado **gratuitamente** sem precisar de um servidor backend:
+
+### 1. Acesse [share.streamlit.io](https://share.streamlit.io) e faça login com o GitHub
+
+### 2. Clique em **"New app"** e selecione:
+- **Repository**: `Hubbleq/sales-etl`
+- **Branch**: `main`
+- **Main file path**: `dashboard/streamlit_app.py`
+
+### 3. Configure os **Secrets** (Settings → Secrets):
+```toml
+DATABASE_URL = "postgresql+psycopg://postgres:<PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres"
+```
+
+### 4. Clique **Deploy** — pronto! 🎉
+
+> O dashboard conecta direto ao Supabase, sem precisar de backend FastAPI na nuvem.
+
+---
+
 ## Endpoints da API
 
 | Método | Rota | Descrição |
