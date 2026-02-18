@@ -1,7 +1,3 @@
-# Sales Analytics Dashboard (Cloud-Ready)
-# Connects directly to Supabase via SQLAlchemy.
-# Works on Streamlit Cloud (st.secrets) or locally (.env).
-
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -16,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Database — tries st.secrets first, then .env
+# Conexão com o banco: tenta st.secrets (Streamlit Cloud), senão usa .env local
 try:
     DB_URL = st.secrets["DATABASE_URL"]
 except Exception:
@@ -25,7 +21,7 @@ except Exception:
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
     DB_URL = os.environ.get("DATABASE_URL", "")
 
-# Normalize to psycopg2 for cloud compatibility
+# Normaliza o driver pra psycopg2 (compatibilidade com a nuvem)
 if "postgresql+psycopg://" in DB_URL:
     DB_URL = DB_URL.replace("postgresql+psycopg://", "postgresql+psycopg2://")
 elif DB_URL.startswith("postgresql://"):
@@ -39,7 +35,7 @@ def get_engine():
     )
 
 
-# -- CSS ---------------------------------------------------------------------
+# Estilos
 
 st.markdown("""
 <style>
@@ -136,29 +132,50 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# -- Queries ------------------------------------------------------------------
+# Consultas ao banco
 
 def _run(sql, params):
-    """Execute a query and return a DataFrame."""
+    """Executa uma query e retorna um DataFrame."""
     with get_engine().connect() as conn:
         return pd.DataFrame(conn.execute(text(sql), params).mappings().all())
 
+def _in_clause(prefix, values, params):
+    """Gera IN (:p0, :p1, ...) e adiciona os valores ao dict de params."""
+    keys = [f"{prefix}{i}" for i in range(len(values))]
+    for k, v in zip(keys, values):
+        params[k] = v
+    return "(" + ", ".join(f":{k}" for k in keys) + ")"
+
 @st.cache_data(ttl=120, show_spinner=False)
-def query_daily(start, end):
+def query_daily(start, end, categories=None, stores=None):
+    joins, wheres, params = "", "", {"s": start, "e": end}
+    if categories:
+        joins += " JOIN dim_produto p USING (produto_id)"
+        wheres += f" AND p.categoria IN {_in_clause('c', categories, params)}"
+    if stores:
+        joins += " JOIN dim_loja l USING (loja_id)"
+        wheres += f" AND l.nome_loja IN {_in_clause('st', stores, params)}"
     return _run(
-        "SELECT data_venda AS date, SUM(valor_total)::FLOAT AS revenue, "
-        "SUM(quantidade) AS units, SUM(desconto)::FLOAT AS discount "
-        "FROM fato_vendas WHERE data_venda BETWEEN :s AND :e GROUP BY 1 ORDER BY 1",
-        {"s": start, "e": end},
+        f"SELECT data_venda AS date, SUM(valor_total)::FLOAT AS revenue, "
+        f"SUM(quantidade) AS units, SUM(desconto)::FLOAT AS discount "
+        f"FROM fato_vendas{joins} WHERE data_venda BETWEEN :s AND :e{wheres} GROUP BY 1 ORDER BY 1",
+        params,
     )
 
 @st.cache_data(ttl=120, show_spinner=False)
-def query_monthly(start, end):
+def query_monthly(start, end, categories=None, stores=None):
+    joins, wheres, params = "", "", {"s": start, "e": end}
+    if categories:
+        joins += " JOIN dim_produto p USING (produto_id)"
+        wheres += f" AND p.categoria IN {_in_clause('c', categories, params)}"
+    if stores:
+        joins += " JOIN dim_loja l USING (loja_id)"
+        wheres += f" AND l.nome_loja IN {_in_clause('st', stores, params)}"
     return _run(
-        "SELECT TO_CHAR(data_venda, 'YYYY-MM') AS month, SUM(valor_total)::FLOAT AS revenue, "
-        "SUM(quantidade) AS units, SUM(desconto)::FLOAT AS discount, COUNT(*) AS rows "
-        "FROM fato_vendas WHERE data_venda BETWEEN :s AND :e GROUP BY 1 ORDER BY 1",
-        {"s": start, "e": end},
+        f"SELECT TO_CHAR(data_venda, 'YYYY-MM') AS month, SUM(valor_total)::FLOAT AS revenue, "
+        f"SUM(quantidade) AS units, SUM(desconto)::FLOAT AS discount, COUNT(*) AS rows "
+        f"FROM fato_vendas{joins} WHERE data_venda BETWEEN :s AND :e{wheres} GROUP BY 1 ORDER BY 1",
+        params,
     )
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -203,7 +220,7 @@ def query_stores_monthly(start, end):
     )
 
 
-# -- Formatters ---------------------------------------------------------------
+# Formatadores de valor
 
 def brl(v):
     if pd.isna(v) or v is None:
@@ -225,7 +242,7 @@ def compact(v):
     return brl(v)
 
 
-# -- Chart defaults -----------------------------------------------------------
+# Layout padrão dos gráficos
 
 CHART_LAYOUT = dict(
     template="plotly_dark",
@@ -257,7 +274,7 @@ DONUT_COLORS = [
 ]
 
 
-# -- Sidebar ------------------------------------------------------------------
+# Barra lateral com filtros
 
 with st.sidebar:
     st.markdown("""
@@ -308,11 +325,14 @@ with st.sidebar:
         st.rerun()
 
 
-# -- Data loading -------------------------------------------------------------
+# Carregamento dos dados (com filtros aplicados na query)
 
 sd, ed = str(s_date), str(e_date)
-df_d  = query_daily(sd, ed)
-df_m  = query_monthly(sd, ed)
+cats_filter = tuple(sel_cats) if sel_cats else None
+stores_filter = tuple(sel_stores) if sel_stores else None
+
+df_d  = query_daily(sd, ed, categories=cats_filter, stores=stores_filter)
+df_m  = query_monthly(sd, ed, categories=cats_filter, stores=stores_filter)
 df_p  = query_top_products(sd, ed)
 df_s  = query_stores(sd, ed)
 df_c  = query_categories(sd, ed)
@@ -330,13 +350,13 @@ if df_d.empty:
     st.stop()
 
 
-# -- Data prep ----------------------------------------------------------------
+# Preparação dos dados
 
 df_d["date"] = pd.to_datetime(df_d["date"])
 if not df_m.empty:
     df_m["month_dt"] = pd.to_datetime(df_m["month"] + "-01")
 
-# Apply filters
+# Aplica filtros nos DataFrames que não recebem filtro via SQL
 if sel_cats:
     if not df_p.empty: df_p = df_p[df_p["category"].isin(sel_cats)]
     if not df_c.empty: df_c = df_c[df_c["category"].isin(sel_cats)]
@@ -344,7 +364,7 @@ if sel_stores:
     if not df_s.empty: df_s = df_s[df_s["store_name"].isin(sel_stores)]
     if not df_sm.empty: df_sm = df_sm[df_sm["store_name"].isin(sel_stores)]
 
-# KPIs
+# Cálculo dos KPIs
 revenue  = df_d["revenue"].sum()
 units    = df_d["units"].sum()
 discount = df_d["discount"].sum() if "discount" in df_d.columns else 0
@@ -352,7 +372,7 @@ ticket   = revenue / units if units > 0 else 0
 n_days   = (df_d["date"].max() - df_d["date"].min()).days + 1
 avg_daily = revenue / n_days if n_days > 0 else 0
 
-# Month-over-month
+# Variação mês a mês
 mom_pct = None
 mom_label = ""
 if not df_m.empty and len(df_m) >= 2:
@@ -363,14 +383,14 @@ if not df_m.empty and len(df_m) >= 2:
             mom_pct = ((curr - prev) / prev) * 100
             mom_label = f"vs mês anterior ({last2.iloc[1]['month']})"
 
-# Best performers
+# Melhores desempenhos
 best_store   = df_s.sort_values("revenue", ascending=False).iloc[0] if not df_s.empty else None
 best_cat     = df_c.sort_values("revenue", ascending=False).iloc[0] if not df_c.empty else None
 best_product = df_p.sort_values("revenue", ascending=False).iloc[0] if not df_p.empty else None
 peak_day     = df_d.loc[df_d["revenue"].idxmax()] if not df_d.empty else None
 
 
-# -- Header -------------------------------------------------------------------
+# Cabeçalho do dashboard
 
 period_str = f"{s_date.strftime('%d/%m/%Y')} — {e_date.strftime('%d/%m/%Y')}"
 now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -392,7 +412,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# -- Section 1: Overview -----------------------------------------------------
+# Visão geral
 
 st.markdown('<div class="section-label">Visão Geral</div>', unsafe_allow_html=True)
 
@@ -428,7 +448,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Narrative insight
+# Insight narrativo automático
 if best_store is not None and best_cat is not None and peak_day is not None:
     peak_dt = peak_day["date"].strftime("%d/%m/%Y")
     st.markdown(f"""
@@ -446,7 +466,7 @@ if best_store is not None and best_cat is not None and peak_day is not None:
     """, unsafe_allow_html=True)
 
 
-# -- Section 2: Trends -------------------------------------------------------
+# Tendências
 
 st.markdown('<div class="section-label">Tendências</div>', unsafe_allow_html=True)
 
@@ -519,7 +539,7 @@ with col_cat:
         )
         st.plotly_chart(fig_d, use_container_width=True)
 
-        # Legend below donut
+        # Legenda abaixo do donut
         legend_html = ""
         for i, (_, row) in enumerate(df_c_sorted.iterrows()):
             pct = (row["revenue"] / total_cat * 100) if total_cat > 0 else 0
@@ -533,14 +553,14 @@ with col_cat:
         st.markdown(f'<div style="padding:0 8px;">{legend_html}</div>', unsafe_allow_html=True)
 
 
-# -- Section 3: Rankings -----------------------------------------------------
+# Rankings
 
 st.markdown('<div class="section-label">Rankings</div>', unsafe_allow_html=True)
 
 col_prod, col_store = st.columns(2)
 
 def render_bar_chart(df, name_col, value_col, colors=None):
-    """Render an HTML horizontal bar chart."""
+    """Renderiza um gráfico de barras horizontal em HTML."""
     if df.empty:
         return
     max_val = df[value_col].max()
@@ -588,7 +608,7 @@ with col_store:
         df_s_sort = df_s.sort_values("revenue", ascending=False)
         render_bar_chart(df_s_sort, "store_name", "revenue", colors=STORE_COLORS)
 
-        # Store insight
+        # Insight da loja líder
         if "units" in df_s_sort.columns:
             total_units = df_s_sort["units"].sum()
             top = df_s_sort.iloc[0]
@@ -605,7 +625,7 @@ with col_store:
             """, unsafe_allow_html=True)
 
 
-# -- Section 4: Monthly comparison -------------------------------------------
+# Comparativo mensal
 
 if not df_sm.empty:
     st.markdown('<div class="section-label">Evolução Mensal</div>', unsafe_allow_html=True)
@@ -640,7 +660,7 @@ if not df_sm.empty:
     st.plotly_chart(fig_m, use_container_width=True)
 
 
-# -- Section 5: Detail table -------------------------------------------------
+# Tabela detalhada
 
 if not df_p.empty:
     st.markdown('<div class="section-label">Dados Detalhados</div>', unsafe_allow_html=True)
@@ -667,7 +687,7 @@ if not df_p.empty:
     )
 
 
-# -- Footer -------------------------------------------------------------------
+# Rodapé
 
 st.markdown(f"""
 <div style="text-align:center;padding:40px 0 8px;margin-top:24px;">
