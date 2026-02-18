@@ -42,91 +42,157 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
     html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif !important; }
-    .stApp { background: #09090b !important; }
+    .stApp { background: #07070a !important; }
     .stDeployButton, #MainMenu, footer, header { display: none !important; }
     .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1440px; }
 
     section[data-testid="stSidebar"] {
-        background: #0c0c0f !important;
-        border-right: 1px solid rgba(255,255,255,0.04) !important;
+        background: linear-gradient(180deg, #0a0a0f 0%, #0c0c12 100%) !important;
+        border-right: 1px solid rgba(255,255,255,0.03) !important;
     }
     section[data-testid="stSidebar"] .stSelectbox label,
     section[data-testid="stSidebar"] .stMultiSelect label,
     section[data-testid="stSidebar"] .stDateInput label {
-        color: rgba(255,255,255,0.4) !important;
-        font-size: 0.7rem !important; font-weight: 600 !important;
-        text-transform: uppercase !important; letter-spacing: 1px !important;
+        color: rgba(255,255,255,0.35) !important;
+        font-size: 0.68rem !important; font-weight: 600 !important;
+        text-transform: uppercase !important; letter-spacing: 1.2px !important;
     }
 
+    /* Header */
     .topbar {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 18px 24px; margin-bottom: 20px;
-        background: rgba(255,255,255,0.015);
-        border: 1px solid rgba(255,255,255,0.04); border-radius: 14px;
+        padding: 20px 28px; margin-bottom: 24px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.04), rgba(168,85,247,0.02));
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 16px;
+        backdrop-filter: blur(20px);
     }
-    .topbar-brand { display: flex; align-items: center; gap: 14px; }
+    .topbar-brand { display: flex; align-items: center; gap: 16px; }
     .topbar-logo {
-        width: 36px; height: 36px; border-radius: 10px;
+        width: 40px; height: 40px; border-radius: 12px;
         background: linear-gradient(135deg, #6366f1, #a855f7);
         display: flex; align-items: center; justify-content: center;
-        font-size: 1rem; box-shadow: 0 4px 20px rgba(99,102,241,0.25);
+        font-size: 1.1rem;
+        box-shadow: 0 4px 24px rgba(99,102,241,0.3), 0 0 0 1px rgba(255,255,255,0.06);
+        animation: logoPulse 3s ease-in-out infinite;
     }
-    .topbar-title { font-size: 1rem; font-weight: 700; color: #fafafa; }
-    .topbar-sub { font-size: 0.7rem; color: rgba(255,255,255,0.25); margin-top: 1px; }
-    .topbar-right { display: flex; align-items: center; gap: 20px; }
-    .topbar-meta { font-size: 0.7rem; color: rgba(255,255,255,0.2); display: flex; align-items: center; gap: 6px; }
+    @keyframes logoPulse {
+        0%, 100% { box-shadow: 0 4px 24px rgba(99,102,241,0.3), 0 0 0 1px rgba(255,255,255,0.06); }
+        50% { box-shadow: 0 6px 32px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.08); }
+    }
+    .topbar-title { font-size: 1.05rem; font-weight: 700; color: #fafafa; letter-spacing: -0.3px; }
+    .topbar-sub { font-size: 0.68rem; color: rgba(255,255,255,0.22); margin-top: 2px; letter-spacing: 0.2px; }
+    .topbar-right { display: flex; align-items: center; gap: 24px; }
+    .topbar-meta {
+        font-size: 0.68rem; color: rgba(255,255,255,0.18);
+        display: flex; align-items: center; gap: 7px;
+    }
     .live-dot {
-        width: 6px; height: 6px; border-radius: 50%; background: #34d399;
-        box-shadow: 0 0 8px #34d399; animation: pulse 2s infinite;
+        width: 7px; height: 7px; border-radius: 50%; background: #34d399;
+        box-shadow: 0 0 10px rgba(52,211,153,0.6); animation: pulse 2s infinite;
     }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
+    /* Section labels */
     .section-label {
-        font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: 1.5px; color: rgba(255,255,255,0.2);
-        padding: 28px 0 12px; border-top: 1px solid rgba(255,255,255,0.03);
-        margin-top: 8px;
+        font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 2px; color: rgba(255,255,255,0.18);
+        padding: 32px 0 14px; margin-top: 12px;
+        border-top: 1px solid rgba(255,255,255,0.03);
+        position: relative;
+    }
+    .section-label::after {
+        content: ''; position: absolute; left: 0; top: 0;
+        width: 40px; height: 1px;
+        background: linear-gradient(90deg, rgba(99,102,241,0.4), transparent);
     }
 
-    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    /* KPI cards */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
     .kpi {
-        background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04);
-        border-radius: 14px; padding: 20px 22px; position: relative; overflow: hidden;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.04);
+        border-radius: 16px; padding: 24px 24px 20px;
+        position: relative; overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(12px);
     }
-    .kpi-accent { font-size: 1.2rem; margin-bottom: 10px; }
-    .kpi-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.3); }
-    .kpi-number { font-size: 1.5rem; font-weight: 800; color: #fafafa; margin: 6px 0 4px; letter-spacing: -0.5px; }
-    .kpi-detail { font-size: 0.7rem; color: rgba(255,255,255,0.25); }
-    .badge-up { color: #34d399; font-weight: 700; font-size: 0.78rem; }
-    .badge-down { color: #f87171; font-weight: 700; font-size: 0.78rem; }
-    .badge-neutral { color: rgba(255,255,255,0.2); font-size: 0.78rem; }
+    .kpi:hover {
+        background: rgba(255,255,255,0.035);
+        border-color: rgba(255,255,255,0.08);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .kpi::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent, #818cf8), transparent);
+        opacity: 0.5;
+    }
+    .kpi:nth-child(1) { --accent: #818cf8; }
+    .kpi:nth-child(2) { --accent: #34d399; }
+    .kpi:nth-child(3) { --accent: #fbbf24; }
+    .kpi:nth-child(4) { --accent: #f472b6; }
+    .kpi-label {
+        font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 1px; color: rgba(255,255,255,0.28); margin-bottom: 8px;
+    }
+    .kpi-number {
+        font-size: 1.6rem; font-weight: 800; color: #fafafa;
+        margin: 0 0 6px; letter-spacing: -0.5px;
+    }
+    .kpi-detail { font-size: 0.68rem; color: rgba(255,255,255,0.22); }
+    .badge-up { color: #34d399; font-weight: 700; font-size: 0.76rem; }
+    .badge-down { color: #f87171; font-weight: 700; font-size: 0.76rem; }
+    .badge-neutral { color: rgba(255,255,255,0.2); font-size: 0.76rem; }
 
+    /* Insight card */
     .insight {
-        display: flex; align-items: flex-start; gap: 14px;
-        background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.1);
-        border-radius: 12px; padding: 16px 20px; margin: 12px 0 8px;
+        display: flex; align-items: center; gap: 12px;
+        background: rgba(99,102,241,0.03);
+        border: 1px solid rgba(99,102,241,0.08);
+        border-left: 3px solid rgba(99,102,241,0.3);
+        border-radius: 10px; padding: 14px 18px; margin: 8px 0;
+        transition: all 0.2s ease;
     }
-    .insight-icon { font-size: 1.1rem; margin-top: 1px; }
-    .insight-text { font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.6; }
-    .insight-text strong { color: rgba(255,255,255,0.8); font-weight: 600; }
+    .insight:hover { background: rgba(99,102,241,0.05); }
+    .insight-text { font-size: 0.75rem; color: rgba(255,255,255,0.4); line-height: 1.5; }
+    .insight-text strong { color: rgba(255,255,255,0.75); font-weight: 600; }
 
+    /* Chart cards */
     .chart-card {
-        background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04);
-        border-radius: 14px; padding: 22px 24px 16px; margin-bottom: 16px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.04);
+        border-radius: 16px; padding: 24px 26px 18px; margin-bottom: 18px;
+        backdrop-filter: blur(12px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .chart-card-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-    .chart-card-title { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.75); }
-    .chart-card-badge { font-size: 0.65rem; color: rgba(255,255,255,0.2); font-weight: 500; }
+    .chart-card:hover {
+        border-color: rgba(255,255,255,0.07);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    }
+    .chart-card-header {
+        display: flex; justify-content: space-between; align-items: baseline;
+        margin-bottom: 6px;
+    }
+    .chart-card-title { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.7); }
+    .chart-card-badge {
+        font-size: 0.62rem; color: rgba(255,255,255,0.18); font-weight: 500;
+        padding: 3px 10px; border-radius: 20px;
+        background: rgba(255,255,255,0.03);
+    }
 
-    ::-webkit-scrollbar { width: 5px; }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 4px; }
 
+    /* Responsive */
     @media (max-width: 768px) {
         .block-container { padding: 1rem !important; }
-        .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .kpi-number { font-size: 1.2rem; }
-        .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px 20px; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -448,19 +514,14 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Insight narrativo automático
-if best_store is not None and best_cat is not None and peak_day is not None:
-    peak_dt = peak_day["date"].strftime("%d/%m/%Y")
+# Insight narrativo (compacto)
+if best_store is not None and peak_day is not None:
+    peak_dt = peak_day["date"].strftime("%d/%m")
     st.markdown(f"""
     <div class="insight">
-        <div class="insight-icon">💡</div>
         <div class="insight-text">
-            No período selecionado, a loja <strong>{best_store["store_name"]}</strong> liderou em receita
-            com <strong>{brl(best_store["revenue"])}</strong>.
-            A categoria mais rentável foi <strong>{best_cat["category"]}</strong>
-            ({brl(best_cat["revenue"])}).
-            O dia de maior faturamento foi <strong>{peak_dt}</strong>
-            com <strong>{brl(peak_day["revenue"])}</strong> em vendas.
+            Loja líder: <strong>{best_store["store_name"]}</strong> ({brl(best_store["revenue"])})
+            &nbsp;·&nbsp; Pico em <strong>{peak_dt}</strong> com <strong>{brl(peak_day["revenue"])}</strong>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -608,22 +669,6 @@ with col_store:
         df_s_sort = df_s.sort_values("revenue", ascending=False)
         render_bar_chart(df_s_sort, "store_name", "revenue", colors=STORE_COLORS)
 
-        # Insight da loja líder
-        if "units" in df_s_sort.columns:
-            total_units = df_s_sort["units"].sum()
-            top = df_s_sort.iloc[0]
-            top_pct = (top["revenue"] / df_s_sort["revenue"].sum() * 100)
-            st.markdown(f"""
-            <div class="insight" style="margin-top:16px;">
-                <div class="insight-icon">🏢</div>
-                <div class="insight-text">
-                    <strong>{top["store_name"]}</strong> concentra <strong>{top_pct:.0f}%</strong> da receita
-                    com <strong>{num(top["units"])}</strong> unidades vendidas
-                    de um total de <strong>{num(total_units)}</strong>.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
 
 # Comparativo mensal
 
@@ -690,10 +735,13 @@ if not df_p.empty:
 # Rodapé
 
 st.markdown(f"""
-<div style="text-align:center;padding:40px 0 8px;margin-top:24px;">
-    <div style="width:24px;height:1px;background:rgba(255,255,255,0.06);margin:0 auto 16px;"></div>
-    <div style="font-size:0.65rem;color:rgba(255,255,255,0.12);font-weight:500;letter-spacing:0.5px;">
-        Sales Analytics v8 · Supabase + Streamlit · {now_str}
+<div style="text-align:center;padding:48px 0 12px;margin-top:32px;">
+    <div style="width:32px;height:2px;
+        background:linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent);
+        margin:0 auto 18px;"></div>
+    <div style="font-size: 0.62rem; color: rgba(255,255,255,0.1); font-weight: 500;
+        letter-spacing: 1px; text-transform: uppercase;">
+        Sales Analytics &middot; {now_str}
     </div>
 </div>
 """, unsafe_allow_html=True)
