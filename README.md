@@ -1,197 +1,166 @@
-# ✦ Sales Analytics Pipeline
+# Sales Analytics Pipeline
 
-Pipeline completo de análise de vendas com **ETL**, **API REST** e **Dashboard interativo**.
+Full-stack analytics pipeline built with Python. Raw CSV goes in, interactive dashboard comes out.
 
-## Tecnologias
+**ETL** extracts and transforms sales data into a dimensional model on Supabase (PostgreSQL).
+**API** exposes everything through FastAPI endpoints for programmatic access.
+**Dashboard** visualizes it all with a premium Streamlit interface featuring auto-generated insights, trend analysis, and ranking charts.
 
-| Camada | Tecnologia |
-|--------|-----------|
+> The dashboard connects directly to the database and can be deployed to Streamlit Community Cloud with zero backend infrastructure.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
 | ETL | Python, Pandas |
 | API | FastAPI, Uvicorn |
 | Dashboard | Streamlit, Plotly |
-| Banco de Dados | PostgreSQL (Supabase) |
+| Database | PostgreSQL (Supabase) |
 | ORM | SQLAlchemy |
 
-## Estrutura do Projeto
+## Project Structure
 
 ```
 etl-sales/
 ├── app/
 │   ├── api/
-│   │   ├── db.py            # Conexão com o banco
-│   │   ├── main.py          # Endpoints da API (FastAPI)
-│   │   └── queries.py       # Queries SQL parametrizadas
+│   │   ├── db.py              # Database connection pool
+│   │   ├── main.py            # FastAPI endpoints
+│   │   └── queries.py         # Parameterized SQL
 │   ├── etl/
-│   │   ├── extract.py       # Leitura do CSV
-│   │   ├── transform.py     # Validação e limpeza
-│   │   ├── load.py          # Carga no banco
-│   │   └── run_etl.py       # Orquestrador do ETL
-│   └── config.py            # Variáveis de ambiente
+│   │   ├── extract.py         # CSV reader
+│   │   ├── transform.py       # Validation and cleanup
+│   │   ├── load.py            # Database loader
+│   │   └── run_etl.py         # ETL orchestrator
+│   └── config.py              # Environment config
 ├── dashboard/
-│   └── streamlit_app.py     # Dashboard premium com storytelling
+│   └── streamlit_app.py       # Interactive dashboard
 ├── data/
-│   └── sample_sales.csv     # Dados de vendas (2025)
-├── generate_data.py         # Gerador de dados realistas
-├── schema.sql               # Schema do banco (modelo dimensional)
-├── requirements.txt         # Dependências Python
-├── run.bat                  # Script para iniciar tudo (Windows)
-├── .env.example             # Modelo de variáveis de ambiente
+│   └── sample_sales.csv       # 2025 sales dataset
+├── schema.sql                 # Dimensional model DDL
+├── requirements.txt
+├── .env.example
 └── README.md
 ```
 
 ---
 
-## 🚀 Passo a Passo para Rodar o Projeto
+## Getting Started
 
-### Pré-requisitos
+### Prerequisites
 
-- **Python 3.10+** instalado ([python.org](https://python.org))
-- **Git** instalado ([git-scm.com](https://git-scm.com))
-- **Conta no Supabase** com um projeto PostgreSQL ([supabase.com](https://supabase.com))
+- Python 3.10+
+- Git
+- A Supabase project with PostgreSQL
 
-### 1. Clone o repositório
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/Hubbleq/sales-etl.git
 cd sales-etl
-```
 
-### 2. Crie o ambiente virtual e instale as dependências
-
-```bash
-# Windows
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Linux/Mac
+
 pip install -r requirements.txt
 ```
 
-```bash
-# Linux / Mac
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 3. Configure o banco de dados
-
-Copie o arquivo de exemplo e preencha com suas credenciais do Supabase:
+### 2. Configure the database
 
 ```bash
-copy .env.example .env        # Windows
-# cp .env.example .env        # Linux/Mac
+copy .env.example .env
 ```
 
-Edite o `.env`:
+Edit `.env` with your Supabase credentials:
 
-```env
-DATABASE_URL=postgresql+psycopg://postgres:<PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres
+```
+DATABASE_URL=postgresql+psycopg://postgres:<PASSWORD>@db.<PROJECT>.supabase.co:5432/postgres
 ```
 
-### 4. Crie as tabelas no banco
+Then run the `schema.sql` file in Supabase SQL Editor to create the tables.
 
-Execute o script SQL no editor do Supabase (SQL Editor) ou via psql:
-
-```bash
-# O arquivo schema.sql contém as tabelas:
-# dim_loja, dim_produto, fato_vendas, etl_execucoes
-```
-
-### 5. Execute o ETL (carga de dados)
+### 3. Load data
 
 ```bash
 python -m app.etl.run_etl
 ```
 
-Isso irá ler o `data/sample_sales.csv`, transformar e carregar no banco.
+This reads `data/sample_sales.csv`, transforms and loads it into the dimensional model.
 
-### 6. Inicie o sistema
+### 4. Run
 
-#### ⚡ Jeito Fácil (Windows)
+**Quick start (Windows):** double-click `run.bat` in the project root.
 
-Dê **dois cliques** no arquivo `run.bat` na raiz do projeto. Ele:
-1. Fecha processos antigos nas portas
-2. Inicia a **API** (backend) na porta 8001
-3. Inicia o **Dashboard** (frontend) na porta 8501
+**Manual:**
 
-#### Manual (qualquer OS)
-
-Abra **dois terminais** na pasta do projeto:
-
-**Terminal 1 — API:**
 ```bash
-.venv\Scripts\activate
+# Terminal 1 - API
 uvicorn app.api.main:app --reload --port 8001
-```
 
-**Terminal 2 — Dashboard:**
-```bash
-.venv\Scripts\activate
+# Terminal 2 - Dashboard
 streamlit run dashboard/streamlit_app.py --server.port 8501
 ```
 
-### 7. Acesse
-
-| Serviço | URL |
+| Service | URL |
 |---------|-----|
-| 📊 **Dashboard** | [http://localhost:8501](http://localhost:8501) |
-| 🔧 **API Docs** (Swagger) | [http://localhost:8001/docs](http://localhost:8001/docs) |
-| ❤️ **Health Check** | [http://localhost:8001/health](http://localhost:8001/health) |
+| Dashboard | http://localhost:8501 |
+| API Docs (Swagger) | http://localhost:8001/docs |
+| Health Check | http://localhost:8001/health |
 
 ---
 
-## ☁️ Deploy Online (Streamlit Community Cloud)
+## Deploy to Streamlit Cloud
 
-O dashboard pode ser publicado **gratuitamente** sem precisar de um servidor backend:
+The dashboard runs standalone — no FastAPI backend needed in production.
 
-### 1. Acesse [share.streamlit.io](https://share.streamlit.io) e faça login com o GitHub
-
-### 2. Clique em **"New app"** e selecione:
-- **Repository**: `Hubbleq/sales-etl`
-- **Branch**: `main`
-- **Main file path**: `dashboard/streamlit_app.py`
-
-### 3. Configure os **Secrets** (Settings → Secrets):
-```toml
-DATABASE_URL = "postgresql+psycopg://postgres:<PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres"
-```
-
-### 4. Clique **Deploy** — pronto! 🎉
-
-> O dashboard conecta direto ao Supabase, sem precisar de backend FastAPI na nuvem.
+1. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub
+2. Click **New app** and select:
+   - Repository: `Hubbleq/sales-etl`
+   - Branch: `main`
+   - Main file path: `dashboard/streamlit_app.py`
+3. Open **Settings > Secrets** and add:
+   ```toml
+   DATABASE_URL = "postgresql+psycopg://postgres:<PASSWORD>@db.<PROJECT>.supabase.co:5432/postgres"
+   ```
+4. Deploy.
 
 ---
 
-## Endpoints da API
+## API Endpoints
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/health` | Status da API |
-| GET | `/sales/daily?start=...&end=...` | Receita diária |
-| GET | `/sales/monthly?start=...&end=...` | Receita mensal |
-| GET | `/products/top?start=...&end=...&limit=N` | Top N produtos |
-| GET | `/products/categories?start=...&end=...` | Receita por categoria |
-| GET | `/stores/performance?start=...&end=...` | Performance por loja |
-| GET | `/stores/monthly?start=...&end=...` | Receita mensal por loja |
-| GET | `/analysis/heatmap?start=...&end=...` | Dados Loja x Categoria |
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/health` | API status |
+| GET | `/sales/daily?start=...&end=...` | Daily revenue |
+| GET | `/sales/monthly?start=...&end=...` | Monthly revenue |
+| GET | `/products/top?start=...&end=...&limit=N` | Top N products |
+| GET | `/products/categories?start=...&end=...` | Revenue by category |
+| GET | `/stores/performance?start=...&end=...` | Store performance |
+| GET | `/stores/monthly?start=...&end=...` | Monthly revenue by store |
 
-## Schema do Banco (Modelo Dimensional)
+## Database Schema
 
-- `dim_loja` — Dimensão de lojas (nome, cidade, estado)
-- `dim_produto` — Dimensão de produtos (SKU, nome, categoria)
-- `fato_vendas` — Fato de vendas (data, quantidade, preço, desconto, total)
-- `etl_execucoes` — Log de execuções do ETL
+Dimensional model with star schema:
 
-## Dashboard
+- **dim_loja** — Store dimension (name, city, state)
+- **dim_produto** — Product dimension (SKU, name, category)
+- **fato_vendas** — Sales fact table (date, quantity, price, discount, total)
+- **etl_execucoes** — ETL run log
 
-Design minimalista premium com storytelling de dados:
+## Dashboard Features
 
-1. **Visão Geral** — KPIs com variação mês-a-mês e insight narrativo automático
-2. **Tendências** — Gráfico de evolução diária + média móvel 7 dias
-3. **Categorias** — Donut chart com distribuição percentual
-4. **Rankings** — Top 10 produtos e performance por loja (barras HTML)
-5. **Evolução Mensal** — Comparativo multi-loja mês a mês
-6. **Dados Detalhados** — Tabela com busca e ordenação
+- KPI cards with month-over-month variation
+- Auto-generated narrative insights
+- Daily revenue trend with 7-day moving average
+- Category distribution (donut chart)
+- Product and store rankings (custom HTML bars)
+- Monthly multi-store comparison
+- Interactive data table with sorting and search
+- Responsive dark theme with Inter typography
 
-## Licença
+---
 
-MIT
+MIT License
