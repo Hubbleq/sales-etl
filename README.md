@@ -1,6 +1,6 @@
-# 📊 Sales Analytics Pipeline
+# ✦ Sales Analytics Pipeline
 
-Pipeline completo de análise de vendas com ETL, API REST e dashboard interativo.
+Pipeline completo de análise de vendas com **ETL**, **API REST** e **Dashboard interativo**.
 
 ## Tecnologias
 
@@ -19,8 +19,8 @@ etl-sales/
 ├── app/
 │   ├── api/
 │   │   ├── db.py            # Conexão com o banco
-│   │   ├── main.py          # Endpoints da API
-│   │   └── queries.py       # Queries SQL
+│   │   ├── main.py          # Endpoints da API (FastAPI)
+│   │   └── queries.py       # Queries SQL parametrizadas
 │   ├── etl/
 │   │   ├── extract.py       # Leitura do CSV
 │   │   ├── transform.py     # Validação e limpeza
@@ -28,32 +28,47 @@ etl-sales/
 │   │   └── run_etl.py       # Orquestrador do ETL
 │   └── config.py            # Variáveis de ambiente
 ├── dashboard/
-│   └── streamlit_app.py     # Painel interativo
+│   └── streamlit_app.py     # Dashboard premium com storytelling
 ├── data/
-│   └── sample_sales.csv     # Dados de vendas
+│   └── sample_sales.csv     # Dados de vendas (2025)
 ├── generate_data.py         # Gerador de dados realistas
-
-├── schema.sql               # Schema do banco (português)
+├── schema.sql               # Schema do banco (modelo dimensional)
 ├── requirements.txt         # Dependências Python
+├── run.bat                  # Script para iniciar tudo (Windows)
 ├── .env.example             # Modelo de variáveis de ambiente
 └── README.md
 ```
 
-## Como Usar
+---
+
+## 🚀 Passo a Passo para Rodar o Projeto
+
+### Pré-requisitos
+
+- **Python 3.10+** instalado ([python.org](https://python.org))
+- **Git** instalado ([git-scm.com](https://git-scm.com))
+- **Conta no Supabase** com um projeto PostgreSQL ([supabase.com](https://supabase.com))
 
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/SEU_USUARIO/etl-sales.git
-cd etl-sales
+git clone https://github.com/Hubbleq/sales-etl.git
+cd sales-etl
 ```
 
 ### 2. Crie o ambiente virtual e instale as dependências
 
 ```bash
+# Windows
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # Linux/Mac
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+```bash
+# Linux / Mac
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -62,53 +77,82 @@ pip install -r requirements.txt
 Copie o arquivo de exemplo e preencha com suas credenciais do Supabase:
 
 ```bash
-copy .env.example .env
+copy .env.example .env        # Windows
+# cp .env.example .env        # Linux/Mac
 ```
 
-Edite o `.env` com a URL do seu banco PostgreSQL:
+Edite o `.env`:
 
+```env
+DATABASE_URL=postgresql+psycopg://postgres:<PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres
 ```
-DATABASE_URL=postgresql+psycopg://postgres:SUA_SENHA@db.SEU_PROJETO.supabase.co:5432/postgres
-```
 
-### 4. Prepare o Banco de Dados
+### 4. Crie as tabelas no banco
 
-1. Executa o script SQL para criar as tabelas:
-   - Use um cliente SQL (DBeaver, pgAdmin) para rodar o arquivo `schema.sql` no seu banco.
-
-2. Gere os dados e rode o ETL:
+Execute o script SQL no editor do Supabase (SQL Editor) ou via psql:
 
 ```bash
-python generate_data.py
+# O arquivo schema.sql contém as tabelas:
+# dim_loja, dim_produto, fato_vendas, etl_execucoes
+```
+
+### 5. Execute o ETL (carga de dados)
+
+```bash
 python -m app.etl.run_etl
 ```
 
-### 5. Inicie a API
+Isso irá ler o `data/sample_sales.csv`, transformar e carregar no banco.
 
+### 6. Inicie o sistema
+
+#### ⚡ Jeito Fácil (Windows)
+
+Dê **dois cliques** no arquivo `run.bat` na raiz do projeto. Ele:
+1. Fecha processos antigos nas portas
+2. Inicia a **API** (backend) na porta 8001
+3. Inicia o **Dashboard** (frontend) na porta 8501
+
+#### Manual (qualquer OS)
+
+Abra **dois terminais** na pasta do projeto:
+
+**Terminal 1 — API:**
 ```bash
-python -m uvicorn app.api.main:app --reload --port 8000
+.venv\Scripts\activate
+uvicorn app.api.main:app --reload --port 8001
 ```
 
-### 6. Inicie o dashboard
-
-Em outro terminal:
-
+**Terminal 2 — Dashboard:**
 ```bash
+.venv\Scripts\activate
 streamlit run dashboard/streamlit_app.py --server.port 8501
 ```
 
-Acesse em [http://localhost:8501](http://localhost:8501)
+### 7. Acesse
+
+| Serviço | URL |
+|---------|-----|
+| 📊 **Dashboard** | [http://localhost:8501](http://localhost:8501) |
+| 🔧 **API Docs** (Swagger) | [http://localhost:8001/docs](http://localhost:8001/docs) |
+| ❤️ **Health Check** | [http://localhost:8001/health](http://localhost:8001/health) |
+
+---
 
 ## Endpoints da API
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/health` | Status da API |
-| GET | `/sales/monthly?start=YYYY-MM-DD&end=YYYY-MM-DD` | Receita mensal |
+| GET | `/sales/daily?start=...&end=...` | Receita diária |
+| GET | `/sales/monthly?start=...&end=...` | Receita mensal |
 | GET | `/products/top?start=...&end=...&limit=N` | Top N produtos |
+| GET | `/products/categories?start=...&end=...` | Receita por categoria |
 | GET | `/stores/performance?start=...&end=...` | Performance por loja |
+| GET | `/stores/monthly?start=...&end=...` | Receita mensal por loja |
+| GET | `/analysis/heatmap?start=...&end=...` | Dados Loja x Categoria |
 
-## Schema do Banco (Português)
+## Schema do Banco (Modelo Dimensional)
 
 - `dim_loja` — Dimensão de lojas (nome, cidade, estado)
 - `dim_produto` — Dimensão de produtos (SKU, nome, categoria)
@@ -117,13 +161,14 @@ Acesse em [http://localhost:8501](http://localhost:8501)
 
 ## Dashboard
 
-O painel usa storytelling com dados e é dividido em seções:
+Design minimalista premium com storytelling de dados:
 
-1. **Visão Geral** — KPIs: Receita, Volume, Ticket Médio, Descontos Concedidos (+ % Margem aproximada)
-2. **Evolução** — Gráfico de área (Receita) overlay com barras de Descontos
-3. **Categorias** — Gráfico de Pizza (novidade!)
-4. **Lojas** — Gráfico de Barras horizontais
-5. **Ranking** — Tabela detalhada de produtos com formatação condicional
+1. **Visão Geral** — KPIs com variação mês-a-mês e insight narrativo automático
+2. **Tendências** — Gráfico de evolução diária + média móvel 7 dias
+3. **Categorias** — Donut chart com distribuição percentual
+4. **Rankings** — Top 10 produtos e performance por loja (barras HTML)
+5. **Evolução Mensal** — Comparativo multi-loja mês a mês
+6. **Dados Detalhados** — Tabela com busca e ordenação
 
 ## Licença
 

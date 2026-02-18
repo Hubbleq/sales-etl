@@ -1,313 +1,771 @@
-# Dashboard de Análise de Vendas
-# Interface minimalista e profissional, sem emojis.
-# Foco em clareza, hierarquia visual e novos KPIs de negócio.
+# ══════════════════════════════════════════════════════════════════════════════
+# Sales Analytics Pro — Dashboard v8.0
+# Design Philosophy: Minimalist · Data Storytelling · Premium Aesthetics
+# ══════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
 import requests
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
-from datetime import date
+from datetime import date, datetime
 
-# Configuração da página
+# ─── Page Config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Sales Dashboard",
-    page_icon="📈",
+    page_title="Sales Analytics",
+    page_icon="✦",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
-# URL da API
-API_URL = "http://localhost:8000"
+API = "http://localhost:8001"
 
-# CSS Minimalista e Profissional
+# ─── Design System (CSS) ─────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    /* ── Base ────────────────────────────────────────── */
     html, body, [class*="css"] {
-        font-family: 'Roboto', sans-serif;
-        background-color: #0e1117;
-        color: #fafafa;
+        font-family: 'Inter', -apple-system, sans-serif !important;
+    }
+    .stApp {
+        background: #09090b !important;
+    }
+    .stDeployButton, #MainMenu, footer, header {
+        display: none !important;
+    }
+    .block-container {
+        padding: 1.5rem 2rem 3rem !important;
+        max-width: 1440px;
     }
 
-    /* Cartões de KPI */
-    .metric-card {
-        background-color: #1e2130;
-        border: 1px solid #2e3b4e;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 15px;
-        transition: transform 0.2s;
+    /* ── Sidebar ─────────────────────────────────────── */
+    section[data-testid="stSidebar"] {
+        background: #0c0c0f !important;
+        border-right: 1px solid rgba(255,255,255,0.04) !important;
     }
-    .metric-card:hover {
-        border-color: #4e5d6c;
-        transform: translateY(-2px);
+    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] .stMultiSelect label,
+    section[data-testid="stSidebar"] .stDateInput label {
+        color: rgba(255,255,255,0.4) !important;
+        font-size: 0.7rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
     }
-    .metric-label {
-        font-size: 0.85rem;
-        color: #a0aab5;
+
+    /* ── Top Bar ──────────────────────────────────────── */
+    .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0 28px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        margin-bottom: 28px;
+    }
+    .topbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .topbar-logo {
+        width: 36px; height: 36px;
+        background: linear-gradient(135deg, #6366f1, #a855f7);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1rem;
+        box-shadow: 0 4px 20px rgba(99,102,241,0.25);
+    }
+    .topbar-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #fafafa;
+        letter-spacing: -0.3px;
+    }
+    .topbar-sub {
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.3);
+        font-weight: 400;
+        margin-top: 1px;
+    }
+    .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    .live-dot {
+        width: 7px; height: 7px;
+        background: #22c55e;
+        border-radius: 50%;
+        display: inline-block;
+        animation: blink 2.5s infinite;
+        margin-right: 6px;
+    }
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+    .topbar-meta {
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.3);
+        font-weight: 500;
+    }
+
+    /* ── Section Labels ───────────────────────────────── */
+    .section-label {
+        font-size: 0.65rem;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1.6px;
+        color: rgba(255,255,255,0.2);
+        margin: 32px 0 16px;
+    }
+
+    /* ── KPI Row ──────────────────────────────────────── */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
         margin-bottom: 8px;
     }
-    .metric-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #ffffff;
+    .kpi {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.04);
+        border-radius: 14px;
+        padding: 20px 22px;
+        transition: all 0.25s ease;
+        position: relative;
     }
-    .metric-sub {
-        font-size: 0.8rem;
-        color: #6c757d;
-        margin-top: 4px;
+    .kpi:hover {
+        border-color: rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.035);
+        transform: translateY(-2px);
     }
-    .positive { color: #00e676; }
-    .negative { color: #ff5252; }
-
-    /* Cabeçalhos de Seção */
-    .section-title {
-        font-size: 1.4rem;
+    .kpi-label {
+        font-size: 0.68rem;
         font-weight: 600;
-        margin-top: 30px;
-        margin-bottom: 20px;
-        color: #e0e0e0;
-        border-left: 4px solid #3b82f6;
-        padding-left: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: rgba(255,255,255,0.3);
+        margin-bottom: 10px;
+    }
+    .kpi-number {
+        font-size: 1.55rem;
+        font-weight: 800;
+        color: #fafafa;
+        letter-spacing: -0.5px;
+        line-height: 1;
+    }
+    .kpi-detail {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.25);
+        margin-top: 8px;
+        font-weight: 500;
+    }
+    .kpi-accent {
+        position: absolute;
+        top: 16px; right: 18px;
+        font-size: 1.4rem;
+        opacity: 0.15;
+    }
+    .badge-up {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: rgba(34,197,94,0.1);
+        color: #22c55e;
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+    .badge-down {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: rgba(239,68,68,0.1);
+        color: #ef4444;
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+    .badge-neutral {
+        display: inline-flex;
+        align-items: center;
+        color: rgba(255,255,255,0.25);
+        font-size: 0.68rem;
+        font-weight: 500;
+        padding: 3px 0;
     }
 
-    /* Ajustes gerais */
-    .stDeployButton { display: none; }
-    #MainMenu { visibility: hidden; }
-    footer { visibility: hidden; }
-    
+    /* ── Insight Card ─────────────────────────────────── */
+    .insight {
+        background: linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(168,85,247,0.04) 100%);
+        border: 1px solid rgba(99,102,241,0.1);
+        border-radius: 12px;
+        padding: 14px 18px;
+        margin: 12px 0 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .insight-icon { font-size: 0.85rem; margin-top: 1px; }
+    .insight-text {
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.55);
+        line-height: 1.55;
+        font-weight: 400;
+    }
+    .insight-text strong {
+        color: rgba(255,255,255,0.8);
+        font-weight: 600;
+    }
+
+    /* ── Chart Card ───────────────────────────────────── */
+    .chart-card {
+        background: rgba(255,255,255,0.015);
+        border: 1px solid rgba(255,255,255,0.04);
+        border-radius: 14px;
+        padding: 22px 24px 16px;
+        margin-bottom: 16px;
+    }
+    .chart-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 4px;
+    }
+    .chart-card-title {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.75);
+    }
+    .chart-card-badge {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.2);
+        font-weight: 500;
+    }
+
+    /* ── Scrollbar ────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 768px) {
+        .block-container { padding: 1rem !important; }
+        .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .kpi-number { font-size: 1.2rem; }
+        .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
-
-# Sidebar de Filtros
-with st.sidebar:
-    st.header("Filtros")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Início", date(2025, 1, 1), format="DD/MM/YYYY")
-    with col2:
-        end_date = st.date_input("Fim", date(2025, 12, 31), format="DD/MM/YYYY")
-
-    st.divider()
-    top_n = st.number_input("Top Produtos", min_value=3, max_value=20, value=7)
-    
-    if st.button("Atualizar Dados", use_container_width=True):
-        st.cache_data.clear()
-        st.experimental_rerun()
-
-
-# Função de busca de dados
-@st.cache_data(ttl=60)
-def fetch_data(endpoint, params):
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=60, show_spinner=False)
+def api(endpoint, params):
     try:
-        r = requests.get(f"{API_URL}{endpoint}", params=params, timeout=10)
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        st.error(f"Erro ao conectar com API ({endpoint}): {e}")
+        r = requests.get(f"{API}{endpoint}", params=params, timeout=8)
+        if r.status_code != 200:
+            return []
+        d = r.json()
+        return d if isinstance(d, list) else [d] if isinstance(d, dict) else []
+    except Exception:
         return []
 
-params = {"start": str(start_date), "end": str(end_date)}
+def brl(v):
+    """R$ 1.234,56"""
+    if pd.isna(v) or v is None:
+        return "R$ 0,00"
+    return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# Carregamento de dados (paralelo na teoria, sequencial aqui)
-data_monthly = fetch_data("/sales/monthly", params)
-data_products = fetch_data("/products/top", {**params, "limit": top_n})
-data_stores = fetch_data("/stores/performance", params)
-data_categories = fetch_data("/products/categories", params)
+def num(v):
+    """1.234"""
+    if pd.isna(v) or v is None:
+        return "0"
+    return f"{v:,.0f}".replace(",", ".")
 
-# DataFrames
-df_m = pd.DataFrame(data_monthly)
-df_p = pd.DataFrame(data_products)
-df_s = pd.DataFrame(data_stores)
-df_c = pd.DataFrame(data_categories)
+def compact(v):
+    """1.2M / 350K"""
+    if pd.isna(v) or v is None:
+        return "0"
+    if abs(v) >= 1_000_000:
+        return f"R$ {v/1_000_000:.1f}M"
+    if abs(v) >= 1_000:
+        return f"R$ {v/1_000:.1f}K"
+    return brl(v)
 
-if df_m.empty:
-    st.warning("Sem dados para o período selecionado.")
-    st.stop()
-
-# ==============================================================================
-# CÁLCULO DE KPIS
-# ==============================================================================
-total_rev = df_m["revenue"].sum()
-total_units = df_m["units"].sum()
-total_disc = df_m["discount"].sum() if "discount" in df_m.columns else 0
-avg_ticket = total_rev / total_units if total_units else 0
-
-# Melhor Loja e Melhor Categoria
-best_store = df_s.iloc[0]["store_name"] if not df_s.empty else "N/A"
-best_cat = df_c.iloc[0]["category"] if not df_c.empty else "N/A"
-
-# Margem bruta aproximada (Impacto dos descontos)
-discount_impact = (total_disc / (total_rev + total_disc) * 100) if (total_rev + total_disc) else 0
-
-# Layout Principal
-
-st.title("Sales Analytics")
-st.markdown("Visão consolidade de desempenho comercial")
-
-# Linha 1: KPIs Financeiros
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Receita Total</div>
-        <div class="metric-value">R$ {total_rev:,.0f}</div>
-        <div class="metric-sub">Faturamento bruto</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c2:
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Volume de Vendas</div>
-        <div class="metric-value">{total_units:,.0f}</div>
-        <div class="metric-sub">Unidades vendidas</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c3:
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Ticket Médio</div>
-        <div class="metric-value">R$ {avg_ticket:,.2f}</div>
-        <div class="metric-sub">Por unidade</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c4:
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Descontos Concedidos</div>
-        <div class="metric-value">R$ {total_disc:,.0f}</div>
-        <div class="metric-sub">{discount_impact:.1f}% sobre o bruto</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# Linha 2: KPIs de Destaque
-c1, c2 = st.columns(2)
-
-with c1:
-    st.markdown(f"""
-    <div class="metric-card" style="border-left: 4px solid #8b5cf6;">
-        <div class="metric-label">Melhor Loja</div>
-        <div class="metric-value">{best_store}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c2:
-    st.markdown(f"""
-    <div class="metric-card" style="border-left: 4px solid #10b981;">
-        <div class="metric-label">Categoria Principal</div>
-        <div class="metric-value">{best_cat}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ==============================================================================
-# GRÁFICOS
-# ==============================================================================
-
-# Seção 1: Evolução
-st.markdown('<div class="section-title">Evolução Mensal</div>', unsafe_allow_html=True)
-
-fig_trend = go.Figure()
-fig_trend.add_trace(go.Scatter(
-    x=df_m["month"], 
-    y=df_m["revenue"],
-    mode='lines+markers',
-    name='Receita',
-    line=dict(color='#3b82f6', width=3),
-    fill='tozeroy',
-    fillcolor='rgba(59, 130, 246, 0.1)'
-))
-fig_trend.add_trace(go.Bar(
-    x=df_m["month"],
-    y=df_m["discount"],
-    name='Descontos',
-    marker_color='rgba(239, 68, 68, 0.5)'
-))
-fig_trend.update_layout(
+CHART_LAYOUT = dict(
     template="plotly_dark",
     paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(0,0,0,0)',
-    margin=dict(l=0, r=0, t=0, b=0),
-    height=350,
-    legend=dict(orientation="h", y=1.1)
+    font=dict(family="Inter, sans-serif", color="rgba(255,255,255,0.5)", size=11),
+    margin=dict(l=0, r=0, t=8, b=0),
 )
-st.plotly_chart(fig_trend, use_container_width=True)
 
+# Palette — muted, cohesive
+PAL = {
+    "primary":  "#818cf8",
+    "accent":   "#a78bfa",
+    "success":  "#22c55e",
+    "warning":  "#f59e0b",
+    "danger":   "#ef4444",
+    "muted":    "rgba(255,255,255,0.15)",
+    "grid":     "rgba(255,255,255,0.03)",
+    "text_dim": "rgba(255,255,255,0.35)",
+    "text":     "rgba(255,255,255,0.7)",
+}
 
-# Seção 2: Categorias e Lojas
-c1, c2 = st.columns(2)
+STORE_COLORS = ['#818cf8','#f472b6','#34d399','#fbbf24','#fb923c',
+                '#60a5fa','#a78bfa','#f87171','#94a3b8','#c084fc']
 
-with c1:
-    st.markdown('<div class="section-title">Performance por Categoria</div>', unsafe_allow_html=True)
-    if not df_c.empty:
-        fig_cat = px.pie(
-            df_c, 
-            names='category', 
-            values='revenue',
-            hole=0.6,
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
-        fig_cat.update_layout(
-            template="plotly_dark",
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=0, r=0, t=0, b=0),
-            height=300,
-            showlegend=True 
-        )
-        st.plotly_chart(fig_cat, use_container_width=True)
+# ─── Sidebar: Filters ────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("""
+    <div style="padding: 20px 0 4px; text-align:center;">
+        <div style="width:40px;height:40px;margin:0 auto 10px;
+            background:linear-gradient(135deg,#6366f1,#a855f7);
+            border-radius:12px;display:flex;align-items:center;justify-content:center;
+            font-size:1.1rem;box-shadow:0 4px 24px rgba(99,102,241,0.3);">✦</div>
+        <div style="font-size:0.85rem;font-weight:700;color:#fafafa;">Sales Analytics</div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.25);margin-top:2px;">Dashboard v8</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
 
-with c2:
-    st.markdown('<div class="section-title">Top Lojas</div>', unsafe_allow_html=True)
-    if not df_s.empty:
-        df_s_sorted = df_s.sort_values("revenue", ascending=True)
-        fig_store = px.bar(
-            df_s_sorted,
-            x="revenue",
-            y="store_name",
-            orientation='h',
-            text="revenue",
-            color="revenue",
-            color_continuous_scale="Blues"
-        )
-        fig_store.update_traces(texttemplate='R$ %{text:,.0f}', textposition='inside')
-        fig_store.update_layout(
-            template="plotly_dark",
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=0, r=0, t=0, b=0),
-            height=300,
-            xaxis=dict(showgrid=False, showticklabels=False, title=None),
-            yaxis=dict(title=None),
-            coloraxis_showscale=False
-        )
-        st.plotly_chart(fig_store, use_container_width=True)
-
-
-# Seção 3: Detalhe de Produtos
-st.markdown('<div class="section-title">Ranking de Produtos</div>', unsafe_allow_html=True)
-
-if not df_p.empty:
-    # Tabela estilizada via CSS/HTML seria ideal, mas st.dataframe é funcional
-    # Vamos limpar o dataframe para exibição
-    df_show = df_p[["product_name", "category", "units", "revenue"]].copy()
-    df_show.columns = ["Produto", "Categoria", "Unidades", "Receita"]
-    
-    st.dataframe(
-        df_show.style.format({
-            "Receita": "R$ {:,.2f}",
-            "Unidades": "{:,.0f}"
-        }).background_gradient(subset=["Receita"], cmap="Blues"),
-        use_container_width=True,
-        hide_index=True
+    period = st.selectbox(
+        "PERÍODO",
+        ["Ano Completo (2025)", "1º Semestre", "2º Semestre", "Personalizado"],
+        index=0,
     )
+    if period == "Ano Completo (2025)":
+        s_date, e_date = date(2025, 1, 1), date(2025, 12, 31)
+    elif period == "1º Semestre":
+        s_date, e_date = date(2025, 1, 1), date(2025, 6, 30)
+    elif period == "2º Semestre":
+        s_date, e_date = date(2025, 7, 1), date(2025, 12, 31)
+    else:
+        s_date = st.date_input("Início", date(2025, 1, 1))
+        e_date = st.date_input("Fim", date(2025, 12, 31))
+
+    params = {"start": str(s_date), "end": str(e_date)}
+    st.markdown("---")
+
+    # Load reference data for multi-selects
+    with st.spinner(""):
+        ref_cats = pd.DataFrame(api("/products/categories", params))
+        ref_stores = pd.DataFrame(api("/stores/performance", params))
+
+    sel_cats = st.multiselect(
+        "CATEGORIAS",
+        options=ref_cats["category"].unique().tolist() if not ref_cats.empty else [],
+    )
+    sel_stores = st.multiselect(
+        "LOJAS",
+        options=ref_stores["store_name"].unique().tolist() if not ref_stores.empty else [],
+    )
+
+    st.markdown("---")
+    if st.button("⟳  Atualizar", type="primary", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+# ─── Data Loading ─────────────────────────────────────────────────────────────
+df_d = pd.DataFrame(api("/sales/daily", params))
+df_m = pd.DataFrame(api("/sales/monthly", params))
+df_p = pd.DataFrame(api("/products/top", {**params, "limit": 500}))
+df_s = pd.DataFrame(api("/stores/performance", params))
+df_c = pd.DataFrame(api("/products/categories", params))
+df_sm = pd.DataFrame(api("/stores/monthly", params))
+
+if df_d.empty:
+    st.markdown("""
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:70vh;">
+        <div style="font-size:2.5rem;margin-bottom:16px;">⏳</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:0.9rem;font-weight:500;">Conectando à API…</div>
+        <div style="color:rgba(255,255,255,0.2);font-size:0.75rem;margin-top:6px;">
+            Verifique se o backend está ativo em localhost:8001</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+# ─── Data Prep ────────────────────────────────────────────────────────────────
+df_d["date"] = pd.to_datetime(df_d["date"])
+if not df_m.empty:
+    df_m["month_dt"] = pd.to_datetime(df_m["month"] + "-01")
+
+# Apply slicer filters
+if sel_cats:
+    if not df_p.empty: df_p = df_p[df_p["category"].isin(sel_cats)]
+    if not df_c.empty: df_c = df_c[df_c["category"].isin(sel_cats)]
+if sel_stores:
+    if not df_s.empty: df_s = df_s[df_s["store_name"].isin(sel_stores)]
+    if not df_sm.empty: df_sm = df_sm[df_sm["store_name"].isin(sel_stores)]
+
+# KPI computations
+revenue = df_d["revenue"].sum()
+units = df_d["units"].sum()
+discount = df_d["discount"].sum() if "discount" in df_d.columns else 0
+ticket = revenue / units if units > 0 else 0
+n_days = (df_d["date"].max() - df_d["date"].min()).days + 1
+avg_daily = revenue / n_days if n_days > 0 else 0
+
+# MoM comparison
+mom_pct = None
+mom_label = ""
+if not df_m.empty and len(df_m) >= 2:
+    last2 = df_m.sort_values("month").tail(2)
+    if len(last2) == 2:
+        prev, curr = last2.iloc[0]["revenue"], last2.iloc[1]["revenue"]
+        if prev > 0:
+            mom_pct = ((curr - prev) / prev) * 100
+            last_month = last2.iloc[1]["month"]
+            mom_label = f"vs mês anterior ({last_month})"
+
+# Best/worst performers
+best_store = df_s.sort_values("revenue", ascending=False).iloc[0] if not df_s.empty else None
+best_cat = df_c.sort_values("revenue", ascending=False).iloc[0] if not df_c.empty else None
+best_product = df_p.sort_values("revenue", ascending=False).iloc[0] if not df_p.empty else None
+
+# Peak day
+peak_day = df_d.loc[df_d["revenue"].idxmax()] if not df_d.empty else None
+
+# ─── Top Bar ──────────────────────────────────────────────────────────────────
+period_str = f"{s_date.strftime('%d/%m/%Y')} — {e_date.strftime('%d/%m/%Y')}"
+now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+st.markdown(f"""
+<div class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">✦</div>
+        <div>
+            <div class="topbar-title">Sales Analytics</div>
+            <div class="topbar-sub">{period_str}</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="topbar-meta"><span class="live-dot"></span>Conectado</div>
+        <div class="topbar-meta">{now_str}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 1 — OVERVIEW
+# ═══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="section-label">Visão Geral</div>', unsafe_allow_html=True)
+
+# KPIs
+if mom_pct is not None:
+    arrow = "↑" if mom_pct >= 0 else "↓"
+    cls = "badge-up" if mom_pct >= 0 else "badge-down"
+    mom_html = f'<span class="{cls}">{arrow} {abs(mom_pct):.1f}%</span> <span class="kpi-detail">{mom_label}</span>'
+else:
+    mom_html = '<span class="badge-neutral">—</span>'
+
+stores_count = len(df_s) if not df_s.empty else 0
+cats_count = len(df_c) if not df_c.empty else 0
+
+st.markdown(f"""
+<div class="kpi-row">
+    <div class="kpi">
+        <div class="kpi-accent">💰</div>
+        <div class="kpi-label">Receita Total</div>
+        <div class="kpi-number">{brl(revenue)}</div>
+        <div class="kpi-detail" style="margin-top:10px;">{mom_html}</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-accent">📦</div>
+        <div class="kpi-label">Unidades Vendidas</div>
+        <div class="kpi-number">{num(units)}</div>
+        <div class="kpi-detail">≈ {num(units / n_days) if n_days else 0}/dia em média</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-accent">🎫</div>
+        <div class="kpi-label">Ticket Médio</div>
+        <div class="kpi-number">{brl(ticket)}</div>
+        <div class="kpi-detail">Receita média por unidade</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-accent">📊</div>
+        <div class="kpi-label">Receita Diária Média</div>
+        <div class="kpi-number">{brl(avg_daily)}</div>
+        <div class="kpi-detail">{n_days} dias no período</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Dynamic narrative insight
+if best_store is not None and best_cat is not None and peak_day is not None:
+    peak_dt = peak_day["date"].strftime("%d/%m/%Y")
+    st.markdown(f"""
+    <div class="insight">
+        <div class="insight-icon">💡</div>
+        <div class="insight-text">
+            No período selecionado, a loja <strong>{best_store["store_name"]}</strong> liderou em receita
+            com <strong>{brl(best_store["revenue"])}</strong>.
+            A categoria mais rentável foi <strong>{best_cat["category"]}</strong>
+            ({brl(best_cat["revenue"])}).
+            O dia de maior faturamento foi <strong>{peak_dt}</strong>
+            com <strong>{brl(peak_day["revenue"])}</strong> em vendas.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 2 — TENDÊNCIAS
+# ═══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="section-label">Tendências</div>', unsafe_allow_html=True)
+
+col_trend, col_cat = st.columns([2.5, 1])
+
+with col_trend:
+    st.markdown("""
+    <div class="chart-card"><div class="chart-card-header">
+        <div class="chart-card-title">Receita Diária</div>
+        <div class="chart-card-badge">Média móvel 7 dias</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    if not df_d.empty:
+        df_d_sorted = df_d.sort_values("date")
+        df_d_sorted["ma7"] = df_d_sorted["revenue"].rolling(7, min_periods=1).mean()
+
+        fig = go.Figure()
+        # Revenue area
+        fig.add_trace(go.Scatter(
+            x=df_d_sorted["date"], y=df_d_sorted["revenue"],
+            mode='lines', name='Receita',
+            line=dict(color=PAL["primary"], width=1.5),
+            fill='tozeroy',
+            fillcolor='rgba(129,140,248,0.06)',
+            hovertemplate='%{x|%d/%m}<br>R$ %{y:,.2f}<extra></extra>',
+        ))
+        # Trend
+        fig.add_trace(go.Scatter(
+            x=df_d_sorted["date"], y=df_d_sorted["ma7"],
+            mode='lines', name='Tendência',
+            line=dict(color='rgba(255,255,255,0.3)', width=1.5, dash='dot'),
+            hovertemplate='MA7: R$ %{y:,.2f}<extra></extra>',
+        ))
+
+        fig.update_layout(
+            **CHART_LAYOUT,
+            height=320,
+            yaxis=dict(showgrid=True, gridcolor=PAL["grid"], zeroline=False),
+            xaxis=dict(showgrid=False),
+            legend=dict(orientation="h", y=1.12, x=1, xanchor="right",
+                        font=dict(size=10, color=PAL["text_dim"])),
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+with col_cat:
+    st.markdown("""
+    <div class="chart-card"><div class="chart-card-header">
+        <div class="chart-card-title">Categorias</div>
+        <div class="chart-card-badge">% da receita</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    if not df_c.empty:
+        df_c_sorted = df_c.sort_values("revenue", ascending=False)
+        colors = [PAL["primary"], '#a78bfa', '#c084fc', '#f472b6', '#fb923c',
+                  '#34d399', '#60a5fa', '#fbbf24', '#f87171', '#94a3b8']
+
+        fig_d = go.Figure(go.Pie(
+            labels=df_c_sorted["category"],
+            values=df_c_sorted["revenue"],
+            hole=0.65,
+            marker=dict(colors=colors[:len(df_c_sorted)],
+                        line=dict(color='#09090b', width=2.5)),
+            textinfo='percent',
+            textfont=dict(size=10, color='rgba(255,255,255,0.6)'),
+            hovertemplate='<b>%{label}</b><br>%{value:,.2f}<br>%{percent}<extra></extra>',
+            sort=False,
+        ))
+        total_cat = df_c_sorted["revenue"].sum()
+        fig_d.update_layout(
+            **CHART_LAYOUT,
+            height=320,
+            showlegend=False,
+            annotations=[dict(
+                text=f"<b>{compact(total_cat)}</b>",
+                x=0.5, y=0.5, font_size=15,
+                font_color="rgba(255,255,255,0.5)",
+                showarrow=False,
+            )],
+        )
+        st.plotly_chart(fig_d, use_container_width=True)
+
+        # Category legend below donut
+        legend_items = ""
+        for i, (_, row) in enumerate(df_c_sorted.iterrows()):
+            pct = (row["revenue"] / total_cat * 100) if total_cat > 0 else 0
+            c = colors[i % len(colors)]
+            legend_items += f"""
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:{c};flex-shrink:0;"></div>
+                <div style="font-size:0.72rem;color:rgba(255,255,255,0.45);flex:1;">{row["category"]}</div>
+                <div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.55);">{pct:.0f}%</div>
+            </div>"""
+        st.markdown(f'<div style="padding:0 8px;">{legend_items}</div>', unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 3 — RANKINGS
+# ═══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="section-label">Rankings</div>', unsafe_allow_html=True)
+
+col_prod, col_store = st.columns(2)
+
+with col_prod:
+    st.markdown("""
+    <div class="chart-card"><div class="chart-card-header">
+        <div class="chart-card-title">Top 10 Produtos</div>
+        <div class="chart-card-badge">por receita</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    if not df_p.empty:
+        df_top10 = df_p.sort_values("revenue", ascending=False).head(10)
+        max_rev = df_top10["revenue"].max()
+
+        # Build clean custom bar chart with HTML for pixel-perfect control
+        bars_html = ""
+        for _, row in df_top10.iterrows():
+            pct = (row["revenue"] / max_rev * 100) if max_rev > 0 else 0
+            bars_html += f"""
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                <div style="width:120px;flex-shrink:0;font-size:0.72rem;color:rgba(255,255,255,0.5);
+                    text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                    title="{row['product_name']}">{row['product_name']}</div>
+                <div style="flex:1;height:26px;background:rgba(255,255,255,0.03);border-radius:6px;
+                    overflow:hidden;position:relative;">
+                    <div style="height:100%;width:{pct}%;
+                        background:linear-gradient(90deg, #6366f1, #a78bfa);
+                        border-radius:6px;transition:width 0.6s ease;"></div>
+                </div>
+                <div style="width:95px;flex-shrink:0;font-size:0.72rem;font-weight:600;
+                    color:rgba(255,255,255,0.6);text-align:right;">{brl(row['revenue'])}</div>
+            </div>"""
+        st.markdown(bars_html, unsafe_allow_html=True)
+
+with col_store:
+    st.markdown("""
+    <div class="chart-card"><div class="chart-card-header">
+        <div class="chart-card-title">Performance por Loja</div>
+        <div class="chart-card-badge">receita total</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    if not df_s.empty:
+        df_s_sort = df_s.sort_values("revenue", ascending=False)
+        max_s = df_s_sort["revenue"].max()
+
+        stores_html = ""
+        for i, (_, row) in enumerate(df_s_sort.iterrows()):
+            pct = (row["revenue"] / max_s * 100) if max_s > 0 else 0
+            c = STORE_COLORS[i % len(STORE_COLORS)]
+            stores_html += f"""
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                <div style="width:100px;flex-shrink:0;font-size:0.72rem;color:rgba(255,255,255,0.5);
+                    text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                    title="{row['store_name']}">{row['store_name']}</div>
+                <div style="flex:1;height:26px;background:rgba(255,255,255,0.03);border-radius:6px;
+                    overflow:hidden;">
+                    <div style="height:100%;width:{pct}%;background:{c};border-radius:6px;
+                        transition:width 0.6s ease;opacity:0.7;"></div>
+                </div>
+                <div style="width:95px;flex-shrink:0;font-size:0.72rem;font-weight:600;
+                    color:rgba(255,255,255,0.6);text-align:right;">{brl(row['revenue'])}</div>
+            </div>"""
+        st.markdown(stores_html, unsafe_allow_html=True)
+
+        # Units sold insight
+        if "units" in df_s_sort.columns:
+            total_store_units = df_s_sort["units"].sum()
+            top_name = df_s_sort.iloc[0]["store_name"]
+            top_pct = (df_s_sort.iloc[0]["revenue"] / df_s_sort["revenue"].sum() * 100)
+            st.markdown(f"""
+            <div class="insight" style="margin-top:16px;">
+                <div class="insight-icon">🏢</div>
+                <div class="insight-text">
+                    <strong>{top_name}</strong> concentra <strong>{top_pct:.0f}%</strong> da receita
+                    com <strong>{num(df_s_sort.iloc[0]["units"])}</strong> unidades vendidas
+                    de um total de <strong>{num(total_store_units)}</strong>.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 4 — COMPARATIVO MENSAL
+# ═══════════════════════════════════════════════════════════════════════════════
+if not df_sm.empty:
+    st.markdown('<div class="section-label">Evolução Mensal</div>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="chart-card"><div class="chart-card-header">
+        <div class="chart-card-title">Receita Mensal por Loja</div>
+        <div class="chart-card-badge">comparativo</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    df_sm["month_dt"] = pd.to_datetime(df_sm["month"] + "-01")
+
+    fig_m = go.Figure()
+    for i, store in enumerate(df_sm["store_name"].unique()):
+        sd = df_sm[df_sm["store_name"] == store].sort_values("month_dt")
+        fig_m.add_trace(go.Scatter(
+            x=sd["month_dt"], y=sd["revenue"],
+            mode='lines+markers', name=store,
+            line=dict(color=STORE_COLORS[i % len(STORE_COLORS)], width=2),
+            marker=dict(size=5),
+            hovertemplate=f'{store}<br>%{{x|%b %Y}}: R$ %{{y:,.2f}}<extra></extra>',
+        ))
+
+    fig_m.update_layout(
+        **CHART_LAYOUT,
+        height=320,
+        yaxis=dict(showgrid=True, gridcolor=PAL["grid"], zeroline=False),
+        xaxis=dict(showgrid=False, dtick="M1", tickformat="%b"),
+        legend=dict(orientation="h", y=-0.18, x=0.5, xanchor="center",
+                    font=dict(size=10, color=PAL["text_dim"])),
+        hovermode="x unified",
+    )
+    st.plotly_chart(fig_m, use_container_width=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 5 — DADOS DETALHADOS
+# ═══════════════════════════════════════════════════════════════════════════════
+if not df_p.empty:
+    st.markdown('<div class="section-label">Dados Detalhados</div>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="chart-card"><div class="chart-card-header">
+        <div class="chart-card-title">Produtos</div>
+        <div class="chart-card-badge">ordenável por qualquer coluna</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    st.dataframe(
+        df_p,
+        column_config={
+            "product_name": st.column_config.TextColumn("Produto", width="large"),
+            "category": st.column_config.TextColumn("Categoria"),
+            "sku": st.column_config.TextColumn("SKU"),
+            "units": st.column_config.NumberColumn("Unidades", format="%d"),
+            "revenue": st.column_config.ProgressColumn(
+                "Receita",
+                format="R$ %.2f",
+                max_value=float(df_p["revenue"].max()) if not df_p.empty else 1,
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        height=380,
+    )
+
+# ─── Footer ──────────────────────────────────────────────────────────────────
+st.markdown(f"""
+<div style="text-align:center;padding:40px 0 8px;margin-top:24px;">
+    <div style="width:24px;height:1px;background:rgba(255,255,255,0.06);margin:0 auto 16px;"></div>
+    <div style="font-size:0.65rem;color:rgba(255,255,255,0.12);font-weight:500;letter-spacing:0.5px;">
+        Sales Analytics v8.0 · FastAPI + Streamlit · {now_str}
+    </div>
+</div>
+""", unsafe_allow_html=True)

@@ -1,5 +1,5 @@
 # Módulo principal da API FastAPI.
-# Atualizado com novos endpoints de categoria.
+# Atualizado com novos endpoints: /sales/daily e /stores/monthly.
 
 import traceback
 from datetime import date
@@ -11,12 +11,12 @@ from sqlalchemy.orm import Session
 
 from app.api.db import get_session
 from app.api.queries import (
-    MONTHLY_REVENUE, TOP_PRODUCTS, STORE_PERFORMANCE, CATEGORY_PERFORMANCE
+    MONTHLY_REVENUE, DAILY_REVENUE, TOP_PRODUCTS, STORE_PERFORMANCE, STORE_MONTHLY, CATEGORY_PERFORMANCE, HEATMAP_DATA
 )
 
 app = FastAPI(
     title="API de Análise de Vendas",
-    version="2.1.0",
+    version="2.3.0",
     description="API REST para dashboard de vendas.",
 )
 
@@ -43,8 +43,19 @@ def vendas_mensais(
     end: date = Query(..., description="Data final"),
     session: Session = Depends(get_session),
 ):
-    """Receita, unidades e descontos por mês."""
+    """Receita agregada por mês."""
     rows = session.execute(MONTHLY_REVENUE, {"start": start, "end": end})
+    return [dict(r._mapping) for r in rows]
+
+
+@app.get("/sales/daily")
+def vendas_diarias(
+    start: date = Query(..., description="Data inicial"),
+    end: date = Query(..., description="Data final"),
+    session: Session = Depends(get_session),
+):
+    """[NOVO] Receita agregada por dia."""
+    rows = session.execute(DAILY_REVENUE, {"start": start, "end": end})
     return [dict(r._mapping) for r in rows]
 
 
@@ -66,8 +77,19 @@ def performance_lojas(
     end: date = Query(..., description="Data final"),
     session: Session = Depends(get_session),
 ):
-    """Desempenho por loja."""
+    """Desempenho total por loja no período."""
     rows = session.execute(STORE_PERFORMANCE, {"start": start, "end": end})
+    return [dict(r._mapping) for r in rows]
+
+
+@app.get("/stores/monthly")
+def performance_lojas_mensal(
+    start: date = Query(..., description="Data inicial"),
+    end: date = Query(..., description="Data final"),
+    session: Session = Depends(get_session),
+):
+    """[NOVO] Desempenho mensal por loja (para gráficos comparativos)."""
+    rows = session.execute(STORE_MONTHLY, {"start": start, "end": end})
     return [dict(r._mapping) for r in rows]
 
 
@@ -77,6 +99,16 @@ def performance_categorias(
     end: date = Query(..., description="Data final"),
     session: Session = Depends(get_session),
 ):
-    """[NOVO] Desempenho por categoria de produto."""
+    """Desempenho por categoria."""
     rows = session.execute(CATEGORY_PERFORMANCE, {"start": start, "end": end})
+    return [dict(r._mapping) for r in rows]
+    
+@app.get("/analysis/heatmap")
+def heatmap_loja_categoria(
+    start: date = Query(..., description="Data inicial"),
+    end: date = Query(..., description="Data final"),
+    session: Session = Depends(get_session),
+):
+    """[NOVO] Dados cruzados Loja x Categoria para Heatmap."""
+    rows = session.execute(HEATMAP_DATA, {"start": start, "end": end})
     return [dict(r._mapping) for r in rows]

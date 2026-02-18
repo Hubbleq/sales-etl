@@ -1,22 +1,28 @@
-# Arquivos de ambiente (contêm senhas do banco)
+# ─── Ambiente ──────────────────────────
 .env
-
-# Ambiente virtual Python
 .venv/
 
-# Cache do Python
+# ─── Python cache ──────────────────────
 __pycache__/
 *.pyc
+*.pyo
 .mypy_cache/
+.pytest_cache/
 
-# Arquivos de diagnóstico (temporários)
+# ─── Debug / scripts temporários ───────
+check_*.py
+debug_*.py
 diagnostico.txt
-check_db.py
 
-# IDE
+# ─── IDE ───────────────────────────────
 .vscode/
 .idea/
+*.code-workspace
 
-# OS
+# ─── OS ────────────────────────────────
 Thumbs.db
 .DS_Store
+desktop.ini
+
+# ─── Gemini agent ──────────────────────
+.gemini/
