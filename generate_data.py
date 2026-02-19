@@ -1,8 +1,5 @@
 # Gerador de dados de vendas realistas para 2025.
-# Cria um CSV com centenas de registros distribuídos ao longo do ano,
-# com 5 lojas brasileiras e 15 produtos de tecnologia.
-# Inclui sazonalidade (picos em novembro/dezembro por Black Friday e Natal).
-
+# Cria um CSV com centenas de registros distribuídos ao longo do ano
 import csv
 import random
 from datetime import date, timedelta
